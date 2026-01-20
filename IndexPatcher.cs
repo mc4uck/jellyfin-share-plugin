@@ -1,8 +1,9 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Common.Configuration;
-using MediaBrowser.Controller.Plugins;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Share;
@@ -11,7 +12,7 @@ namespace Jellyfin.Plugin.Share;
 /// Patches Jellyfin's index.html on startup to inject the share plugin script.
 /// This ensures the plugin works automatically after Jellyfin updates.
 /// </summary>
-public class IndexPatcher : IServerEntryPoint
+public class IndexPatcher : IHostedService
 {
     private readonly ILogger<IndexPatcher> _logger;
     private readonly IApplicationPaths _appPaths;
@@ -30,7 +31,7 @@ public class IndexPatcher : IServerEntryPoint
     }
 
     /// <inheritdoc />
-    public Task RunAsync()
+    public Task StartAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -41,6 +42,12 @@ public class IndexPatcher : IServerEntryPoint
             _logger.LogError(ex, "Failed to patch index.html for Jellyfin Share plugin");
         }
 
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
         return Task.CompletedTask;
     }
 
@@ -98,11 +105,5 @@ public class IndexPatcher : IServerEntryPoint
 
         _logger.LogWarning("Jellyfin Share: Could not find or patch index.html. " +
             "Add the script manually via Dashboard → General → Branding, or ensure the web directory is writable.");
-    }
-
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        GC.SuppressFinalize(this);
     }
 }

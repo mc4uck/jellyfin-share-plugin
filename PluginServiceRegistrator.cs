@@ -2,6 +2,7 @@ using Jellyfin.Plugin.Share.Api;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Jellyfin.Plugin.Share;
 
@@ -15,6 +16,6 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     {
         services.AddHttpClient();
         services.AddSingleton<ShareService>();
-        services.AddSingleton<IServerEntryPoint, IndexPatcher>();
+        services.AddHostedService<IndexPatcher>();
     }
 }
