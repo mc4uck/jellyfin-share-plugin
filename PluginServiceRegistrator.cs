@@ -15,5 +15,6 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     {
         services.AddHttpClient();
         services.AddSingleton<ShareService>();
+        services.AddSingleton<IServerEntryPoint, IndexPatcher>();
     }
 }
