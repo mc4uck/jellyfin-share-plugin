@@ -851,9 +851,40 @@
         }
     }
 
+   function startPlugin() {
+        // Запускаем оригинальную инициализацию автора, если она еще не была запущена
+        if (typeof init === 'function') {
+            init();
+        }
+
+        // Запускаем MutationObserver, который будет проверять страницу при каждом переходе
+        const shareObserver = new MutationObserver(() => {
+            if (typeof isDetailPage === 'function' && isDetailPage()) {
+                // Если мы на странице деталей/серии, вызываем функцию отрисовки кнопки
+                // (Обычно в плагинах автора она называется injectShareButton или bindPage)
+                if (typeof injectShareButton === 'function') {
+                    injectShareButton();
+                } else if (typeof bindPage === 'function') {
+                    bindPage();
+                }
+            }
+            // Также проверяем кнопку в шапке профиля
+            if (typeof addMySharesButton === 'function') {
+                addMySharesButton();
+            }
+        });
+
+        // Начинаем следить за всем документом Jellyfin
+        shareObserver.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+
+    // Проверяем готовность API клиента, как это делал автор, но с авто-повтором
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => waitForApiClient(init));
+        document.addEventListener('DOMContentLoaded', () => waitForApiClient(startPlugin));
     } else {
-        waitForApiClient(init);
+        waitForApiClient(startPlugin);
     }
 })();
