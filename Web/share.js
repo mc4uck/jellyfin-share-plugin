@@ -705,6 +705,16 @@
         return null;
     }
 
+    function findVisibleElements(selectors, root = document) {
+        const result = [];
+
+        for (const selector of selectors) {
+            result.push(...Array.from(root.querySelectorAll(selector)).filter(isElementVisible));
+        }
+
+        return result;
+    }
+
     function getActiveDetailRoot() {
         const selectors = [
             '.page:not(.hide)',
@@ -720,7 +730,7 @@
     }
 
     function findButtonContainer(root) {
-        const directContainer = findVisibleElement([
+        const directContainers = findVisibleElements([
             '.mainDetailButtons',
             '.detailButtons',
             '.itemDetailButtons',
@@ -729,9 +739,10 @@
             '.itemDetailPage .buttons',
             '.mediaInfoButtons'
         ], root);
+        const directContainer = directContainers[directContainers.length - 1];
         if (directContainer) return directContainer;
 
-        const existingDetailButton = findVisibleElement([
+        const existingDetailButtons = findVisibleElements([
             '.btnMoreCommands',
             '.btnPlay',
             '.btnResume',
@@ -741,6 +752,7 @@
             '.btnUserRating',
             '.detailButton'
         ], root);
+        const existingDetailButton = existingDetailButtons[existingDetailButtons.length - 1];
 
         return existingDetailButton?.closest('.mainDetailButtons, .detailButtons, .itemDetailButtons, .buttons, .mediaInfoButtons') ||
                existingDetailButton?.parentElement ||
@@ -801,28 +813,54 @@
         const activeRoot = getActiveDetailRoot();
         const btnContainer = findButtonContainer(activeRoot) || findButtonContainer(document);
         if (!btnContainer) {
-            document.querySelectorAll('.btnShare').forEach(btn => btn.remove());
+            cleanupShareButtons();
             return;
         }
 
         const detailRoot = btnContainer.closest('.detailPage, .itemDetailPage, .libraryPage, .page, main') || document;
         const itemId = getItemIdFromPage(detailRoot);
         if (!itemId) {
-            document.querySelectorAll('.btnShare').forEach(btn => btn.remove());
+            cleanupShareButtons();
             return;
         }
 
-        document.querySelectorAll('.btnShare').forEach(btn => {
-            if (btn.parentElement !== btnContainer || btn.dataset.itemId !== itemId || btn.dataset.jfshareBound !== 'true') {
-                btn.remove();
-            }
-        });
+        cleanupShareButtons(btnContainer, itemId);
 
         if (btnContainer.querySelector('.btnShare')) {
             return;
         }
 
         // Create share button matching Jellyfin's style
+        const shareBtn = createShareButton(itemId, btnContainer);
+
+        // Insert before the "More" button if it exists, otherwise append
+        const moreBtn = btnContainer.querySelector('.btnMoreCommands');
+        if (moreBtn) {
+            btnContainer.insertBefore(shareBtn, moreBtn);
+        } else {
+            btnContainer.appendChild(shareBtn);
+        }
+    }
+
+    function cleanupShareButtons(activeContainer = null, activeItemId = null) {
+        let keptActiveButton = false;
+
+        document.querySelectorAll('.btnShare').forEach(btn => {
+            const isActiveButton = activeContainer &&
+                                   btn.parentElement === activeContainer &&
+                                   btn.dataset.itemId === activeItemId &&
+                                   btn.dataset.jfshareBound === 'true';
+
+            if (!isActiveButton || keptActiveButton) {
+                btn.remove();
+                return;
+            }
+
+            keptActiveButton = true;
+        });
+    }
+
+    function createShareButton(itemId, btnContainer) {
         const shareBtn = document.createElement('button');
         shareBtn.setAttribute('is', 'emby-button');
         shareBtn.setAttribute('type', 'button');
@@ -859,13 +897,7 @@
             showShareDialog(currentItemId, itemName, itemType);
         });
 
-        // Insert before the "More" button if it exists, otherwise append
-        const moreBtn = btnContainer.querySelector('.btnMoreCommands');
-        if (moreBtn) {
-            btnContainer.insertBefore(shareBtn, moreBtn);
-        } else {
-            btnContainer.appendChild(shareBtn);
-        }
+        return shareBtn;
     }
 
     // Add My Shares button to user menu
@@ -907,14 +939,13 @@
     function getItemIdFromPage(root = document) {
         const hash = window.location.hash;
 
-        // Try URL and hash query parameters first. These are the most reliable in Jellyfin.
-        const queryStrings = [
-            window.location.search,
+        // Prefer the hash route: Jellyfin keeps the current SPA page there.
+        const hashQueryStrings = [
             hash.includes('?') ? hash.substring(hash.indexOf('?')) : '',
             hash.includes('&') ? hash.substring(hash.indexOf('&')) : ''
         ].filter(Boolean);
 
-        for (const queryString of queryStrings) {
+        for (const queryString of hashQueryStrings) {
             const params = new URLSearchParams(queryString.replace(/^#/, '').replace(/^\?/, ''));
             const id = params.get('itemId') || params.get('id');
             if (id) return decodeURIComponent(id);
@@ -924,12 +955,10 @@
         const guidMatch = routeText.match(/(?:details|item|items)[/?#&=/:]+([0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
         if (guidMatch) return guidMatch[1].replace(/-/g, '');
 
-        const rootId = root.dataset?.itemid || root.dataset?.itemId;
-        if (rootId) return rootId;
-
-        const itemElement = root.querySelector('.detailPagePrimaryContainer [data-itemid], .detailPagePrimaryContainer [data-item-id], .itemName[data-itemid], .itemName[data-item-id]');
-        const domId = itemElement?.dataset?.itemid || itemElement?.dataset?.itemId;
-        if (domId) return domId;
+        // Non-hash query is only a fallback for non-SPA detail URLs.
+        const urlParams = new URLSearchParams(window.location.search);
+        const id = urlParams.get('itemId') || urlParams.get('id');
+        if (id) return decodeURIComponent(id);
 
         return null;
     }
@@ -977,6 +1006,13 @@
         if (isDetailPage()) {
             setTimeout(addShareButton, 300);
         }
+        setInterval(() => {
+            if (isDetailPage()) {
+                addShareButton();
+            } else {
+                cleanupShareButtons();
+            }
+        }, 1000);
         setTimeout(addMySharesButton, 500);
 
         console.log('Jellyfin Share: Plugin initialized successfully');
