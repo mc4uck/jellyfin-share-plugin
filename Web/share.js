@@ -678,43 +678,146 @@
         return div.innerHTML;
     }
 
+    function isElementVisible(element) {
+        if (!element) return false;
+
+        const style = window.getComputedStyle(element);
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+    }
+
+    function findVisibleElement(selectors, root = document) {
+        for (const selector of selectors) {
+            const elements = Array.from(root.querySelectorAll(selector));
+            const visible = elements.find(isElementVisible);
+            if (visible) return visible;
+        }
+
+        return null;
+    }
+
+    function getActiveDetailRoot() {
+        const selectors = [
+            '.page:not(.hide)',
+            '.page:not(.hidden)',
+            '.libraryPage:not(.hide)',
+            '.libraryPage:not(.hidden)',
+            '.detailPage',
+            '.itemDetailPage',
+            'main'
+        ];
+
+        return findVisibleElement(selectors) || document;
+    }
+
+    function findButtonContainer(root) {
+        const directContainer = findVisibleElement([
+            '.mainDetailButtons',
+            '.detailButtons',
+            '.itemDetailButtons',
+            '.detailPagePrimaryContainer .buttons',
+            '.detailPagePrimaryContainer .mainDetailButtons',
+            '.itemDetailPage .buttons',
+            '.mediaInfoButtons'
+        ], root);
+        if (directContainer) return directContainer;
+
+        const existingDetailButton = findVisibleElement([
+            '.btnMoreCommands',
+            '.btnPlay',
+            '.btnResume',
+            '.btnShuffle',
+            '.btnDownload',
+            '.btnFavorite',
+            '.btnUserRating',
+            '.detailButton'
+        ], root);
+
+        return existingDetailButton?.closest('.mainDetailButtons, .detailButtons, .itemDetailButtons, .buttons, .mediaInfoButtons') ||
+               existingDetailButton?.parentElement ||
+               null;
+    }
+
+    async function getItemInfoFromApi(itemId) {
+        if (!itemId || !window.ApiClient) return null;
+
+        try {
+            if (typeof ApiClient.getItem === 'function') {
+                const userId = typeof ApiClient.getCurrentUserId === 'function' ? ApiClient.getCurrentUserId() : null;
+                return userId ? await ApiClient.getItem(userId, itemId) : await ApiClient.getItem(itemId);
+            }
+
+            const currentUserId = typeof ApiClient.getCurrentUserId === 'function' ? ApiClient.getCurrentUserId() : null;
+            const itemUrl = currentUserId ? `Users/${currentUserId}/Items/${itemId}` : `Items/${itemId}`;
+            return await ApiClient.getJSON(ApiClient.getUrl(itemUrl));
+        } catch (e) {
+            console.warn('Jellyfin Share: Failed to load item info', e);
+            return null;
+        }
+    }
+
+    function getItemNameFromPage(root, apiItem) {
+        return apiItem?.Name ||
+               root.querySelector('.itemName')?.textContent?.trim() ||
+               root.querySelector('.parentName')?.textContent?.trim() ||
+               root.querySelector('h1')?.textContent?.trim() ||
+               document.querySelector('h1')?.textContent?.trim() ||
+               'this item';
+    }
+
+    function getItemTypeFromPage(root, apiItem) {
+        if (apiItem?.Type) return apiItem.Type;
+
+        const text = [
+            root.querySelector('.itemMiscInfo-primary')?.textContent,
+            root.querySelector('.itemMiscInfo')?.textContent,
+            root.querySelector('.overview')?.textContent,
+            document.body?.className
+        ].filter(Boolean).join(' ').toLowerCase();
+
+        if (text.includes('series') || root.querySelector('.seasons')) return 'Series';
+        if (text.includes('season')) return 'Season';
+        if (text.includes('episode')) return 'Episode';
+        if (text.includes('movie')) return 'Movie';
+
+        return 'Movie';
+    }
+
+    function isShareableItemType(itemType) {
+        return !itemType || ['Movie', 'Episode', 'Series', 'Season', 'Video'].includes(itemType);
+    }
+
     // Add share button to item details
-    function addShareButton() {
-        // Check if button already exists
-        if (document.querySelector('.btnShare')) return;
+    async function addShareButton() {
+        const detailRoot = getActiveDetailRoot();
 
         // Find the buttons container - try multiple selectors for different Jellyfin versions
-        const btnContainer = document.querySelector('.mainDetailButtons') ||
-                            document.querySelector('.detailButtons') ||
-                            document.querySelector('.itemDetailButtons');
+        const btnContainer = findButtonContainer(detailRoot);
         if (!btnContainer) {
             return;
         }
 
         // Get item info from page
-        const itemId = getItemIdFromPage();
+        const itemId = getItemIdFromPage(detailRoot);
         if (!itemId) {
             return;
         }
 
-        // Get item name and type
-        const itemName = document.querySelector('.itemName')?.textContent ||
-                        document.querySelector('h1')?.textContent ||
-                        'this item';
-
-        // Try to determine item type from the page
-        let itemType = 'Movie';
-        const itemTypeEl = document.querySelector('.itemMiscInfo-primary');
-        if (itemTypeEl) {
-            const text = itemTypeEl.textContent.toLowerCase();
-            if (text.includes('series') || document.querySelector('.seasons')) {
-                itemType = 'Series';
-            } else if (text.includes('season')) {
-                itemType = 'Season';
-            } else if (text.includes('episode')) {
-                itemType = 'Episode';
-            }
+        const existingShareButton = btnContainer.querySelector('.btnShare') || detailRoot.querySelector('.btnShare');
+        if (existingShareButton) {
+            if (existingShareButton.dataset.itemId === itemId) return;
+            existingShareButton.remove();
         }
+
+        const apiItem = await getItemInfoFromApi(itemId);
+        const itemName = getItemNameFromPage(detailRoot, apiItem);
+        const itemType = getItemTypeFromPage(detailRoot, apiItem);
+        if (!isShareableItemType(itemType)) return;
+
+        // The API lookup is async; another observer tick may have added the button meanwhile.
+        if (Array.from(btnContainer.querySelectorAll('.btnShare')).some(btn => btn.dataset.itemId === itemId)) return;
 
         // Create share button matching Jellyfin's style
         const shareBtn = document.createElement('button');
@@ -722,6 +825,7 @@
         shareBtn.setAttribute('type', 'button');
         shareBtn.classList.add('button-flat', 'btnShare', 'detailButton', 'emby-button');
         shareBtn.setAttribute('title', 'Share');
+        shareBtn.dataset.itemId = itemId;
         shareBtn.innerHTML = `
             <div class="detailButton-content">
                 <span class="material-icons detailButton-icon share" aria-hidden="true"></span>
@@ -779,16 +883,26 @@
     }
 
     // Extract item ID from current page
-    function getItemIdFromPage() {
+    function getItemIdFromPage(root = document) {
         // Try URL parameter
         const urlParams = new URLSearchParams(window.location.search);
-        const id = urlParams.get('id');
-        if (id) return id;
+        const id = urlParams.get('id') || urlParams.get('itemId');
+        if (id) return decodeURIComponent(id);
 
         // Try hash
         const hash = window.location.hash;
-        const match = hash.match(/id=([^&]+)/);
-        if (match) return match[1];
+        const match = hash.match(/(?:id|itemId)=([^&]+)/i);
+        if (match) return decodeURIComponent(match[1]);
+
+        const guidMatch = `${window.location.pathname}${hash}`.match(/[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+        if (guidMatch) return guidMatch[0].replace(/-/g, '');
+
+        const itemElement = root.querySelector('[data-itemid], [data-item-id], [data-id]') ||
+                            document.querySelector('.detailPage [data-itemid], .detailPage [data-item-id], .detailPage [data-id]');
+        const domId = itemElement?.dataset?.itemid ||
+                      itemElement?.dataset?.itemId ||
+                      itemElement?.dataset?.id;
+        if (domId) return domId;
 
         return null;
     }
@@ -800,9 +914,10 @@
         return hash.includes('item?') ||
                hash.includes('details?') ||
                hash.includes('id=') ||
+               hash.includes('itemid=') ||
                path.includes('/details') ||
                path.includes('/item') ||
-               document.querySelector('.mainDetailButtons') !== null;
+               findButtonContainer(getActiveDetailRoot()) !== null;
     }
 
     // Initialize
