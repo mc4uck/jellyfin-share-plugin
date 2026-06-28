@@ -680,16 +680,14 @@
 
     // Add share button to item details
     function addShareButton() {
-        // Check if button already exists
-        if (document.querySelector('.btnShare')) return;
-
         // Find the buttons container - try multiple selectors for different Jellyfin versions
-        const btnContainer = document.querySelector('.mainDetailButtons') ||
-                            document.querySelector('.detailButtons') ||
-                            document.querySelector('.itemDetailButtons');
+        const btnContainer = findVisibleDetailButtonContainer();
         if (!btnContainer) {
             return;
         }
+
+        // Check if button already exists in the active buttons container
+        if (btnContainer.querySelector('.btnShare')) return;
 
         // Get item info from page
         const itemId = getItemIdFromPage();
@@ -741,6 +739,16 @@
         } else {
             btnContainer.appendChild(shareBtn);
         }
+    }
+
+    function isVisible(element) {
+        return !!(element && (element.offsetWidth || element.offsetHeight || element.getClientRects().length));
+    }
+
+    function findVisibleDetailButtonContainer() {
+        const selectors = '.mainDetailButtons, .detailButtons, .itemDetailButtons';
+        const containers = Array.from(document.querySelectorAll(selectors));
+        return containers.find(isVisible) || null;
     }
 
     // Add My Shares button to user menu
@@ -802,7 +810,7 @@
                hash.includes('id=') ||
                path.includes('/details') ||
                path.includes('/item') ||
-               document.querySelector('.mainDetailButtons') !== null;
+               findVisibleDetailButtonContainer() !== null;
     }
 
     // Initialize
