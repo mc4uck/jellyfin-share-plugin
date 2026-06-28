@@ -4,7 +4,7 @@ A Jellyfin plugin that adds a "Share" button to movie and episode detail pages, 
 
 ## Requirements
 
-- Jellyfin 10.10 or later
+- Jellyfin 10.11 or later
 - [Jellyfin Share Backend](https://github.com/monxas/jellyfin-share-backend) running and configured
 
 ## Installation
@@ -18,7 +18,7 @@ A Jellyfin plugin that adds a "Share" button to movie and episode detail pages, 
 
 ### Manual Installation
 
-1. Download the latest release from [Releases](https://github.com/monxas/jellyfin-share-plugin/releases)
+1. Download the latest release from [Releases](https://github.com/mc4uck/jellyfin-share-plugin/releases)
 2. Extract `Jellyfin.Plugin.Share.dll` to your Jellyfin plugins directory:
    - Linux: `/var/lib/jellyfin/plugins/JellyfinShare/`
    - Docker: `/config/plugins/JellyfinShare/`
