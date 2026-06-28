@@ -115,8 +115,8 @@
 
     // Create share dialog
     function showShareDialog(itemId, itemName, itemType) {
-        const isSeries = itemType === 'Series' || itemType === 'Episode';
-        const isSeason = itemType === 'Season' || itemType === 'BoxSet';
+        const isSeries = itemType === 'Series';
+        const isSeason = itemType === 'Season';
 
         const html = `
             <style>${commonStyles}</style>
