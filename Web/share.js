@@ -679,47 +679,31 @@
     }
 
     // Add share button to item details
-    function addShareButton() {
-        // Убираем старую кнопку, если она есть, чтобы не дублировать
-        const existingBtn = document.querySelector('.btnShare');
-        if (existingBtn) existingBtn.remove();
+  function addShareButton() {
+        // 1. Сначала ищем уже существующие кнопки и удаляем их ВСЕ
+        const existingButtons = document.querySelectorAll('.btnShare');
+        existingButtons.forEach(btn => btn.remove());
 
-        // 1. Поиск контейнера кнопок
+        // 2. Ищем контейнер
         const btnContainer = document.querySelector('.itemDetailButtons') || 
                             document.querySelector('.mainDetailButtons') || 
                             document.querySelector('.detailButtons');
+        
         if (!btnContainer) return;
 
-        // 2. Получение ID элемента (более надежный способ через атрибуты Jellyfin)
-        // В карточках деталей обычно есть атрибут data-id
-        const itemContainer = document.querySelector('[data-id]') || document.querySelector('.itemDetail');
-        const itemId = itemContainer ? itemContainer.getAttribute('data-id') : getItemIdFromPage();
+        // 3. Получаем ID (используем атрибут, так как он надежнее URL)
+        const itemDetail = document.querySelector('.itemDetail') || document.querySelector('[data-id]');
+        const itemId = itemDetail ? itemDetail.getAttribute('data-id') : getItemIdFromPage();
         
         if (!itemId) return;
 
-        // 3. Получение названия и типа
-        const itemName = document.querySelector('.itemName')?.textContent || document.querySelector('h1')?.textContent || 'this item';
-        
-        // Исправленное определение типа: используем URL или метаданные
-        let itemType = 'Movie';
-        const hash = window.location.hash;
-        if (hash.includes('series')) itemType = 'Series';
-        else if (hash.includes('season')) itemType = 'Season';
-        else if (hash.includes('episode')) itemType = 'Episode';
-        else {
-            // Резервный способ через текст
-            const info = document.querySelector('.itemMiscInfo-primary')?.textContent.toLowerCase() || '';
-            if (info.includes('episode')) itemType = 'Episode';
-            else if (info.includes('season')) itemType = 'Season';
-            else if (info.includes('series')) itemType = 'Series';
-        }
-
-        // Создание кнопки
+        // 4. Создаем кнопку
         const shareBtn = document.createElement('button');
         shareBtn.setAttribute('is', 'emby-button');
-        shareBtn.type = 'button';
+        shareBtn.setAttribute('type', 'button');
+        // Добавляем класс, чтобы найти её в будущем
         shareBtn.classList.add('button-flat', 'btnShare', 'detailButton', 'emby-button');
-        shareBtn.title = 'Share';
+        shareBtn.setAttribute('title', 'Share');
         shareBtn.innerHTML = `
             <div class="detailButton-content">
                 <span class="material-icons detailButton-icon share" aria-hidden="true">share</span>
@@ -729,9 +713,12 @@
         shareBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            showShareDialog(itemId, itemName, itemType);
+            // Получаем тип из текущего элемента или заголовка
+            const itemType = document.querySelector('.itemMiscInfo-primary')?.textContent.includes('Episode') ? 'Episode' : 'Movie';
+            showShareDialog(itemId, document.querySelector('h1')?.textContent || 'Item', itemType);
         });
 
+        // 5. Вставляем
         const moreBtn = btnContainer.querySelector('.btnMoreCommands');
         if (moreBtn) {
             btnContainer.insertBefore(shareBtn, moreBtn);
