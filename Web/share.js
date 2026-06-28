@@ -680,51 +680,49 @@
 
     // Add share button to item details
     function addShareButton() {
-        // Check if button already exists
-        if (document.querySelector('.btnShare')) return;
+        // Убираем старую кнопку, если она есть, чтобы не дублировать
+        const existingBtn = document.querySelector('.btnShare');
+        if (existingBtn) existingBtn.remove();
 
-        // Find the buttons container - try multiple selectors for different Jellyfin versions
-        const btnContainer = document.querySelector('.mainDetailButtons') ||
-                            document.querySelector('.detailButtons') ||
-                            document.querySelector('.itemDetailButtons');
-        if (!btnContainer) {
-            return;
-        }
+        // 1. Поиск контейнера кнопок
+        const btnContainer = document.querySelector('.itemDetailButtons') || 
+                            document.querySelector('.mainDetailButtons') || 
+                            document.querySelector('.detailButtons');
+        if (!btnContainer) return;
 
-        // Get item info from page
-        const itemId = getItemIdFromPage();
-        if (!itemId) {
-            return;
-        }
+        // 2. Получение ID элемента (более надежный способ через атрибуты Jellyfin)
+        // В карточках деталей обычно есть атрибут data-id
+        const itemContainer = document.querySelector('[data-id]') || document.querySelector('.itemDetail');
+        const itemId = itemContainer ? itemContainer.getAttribute('data-id') : getItemIdFromPage();
+        
+        if (!itemId) return;
 
-        // Get item name and type
-        const itemName = document.querySelector('.itemName')?.textContent ||
-                        document.querySelector('h1')?.textContent ||
-                        'this item';
-
-        // Try to determine item type from the page
+        // 3. Получение названия и типа
+        const itemName = document.querySelector('.itemName')?.textContent || document.querySelector('h1')?.textContent || 'this item';
+        
+        // Исправленное определение типа: используем URL или метаданные
         let itemType = 'Movie';
-        const itemTypeEl = document.querySelector('.itemMiscInfo-primary');
-        if (itemTypeEl) {
-            const text = itemTypeEl.textContent.toLowerCase();
-            if (text.includes('series') || document.querySelector('.seasons')) {
-                itemType = 'Series';
-            } else if (text.includes('season')) {
-                itemType = 'Season';
-            } else if (text.includes('episode')) {
-                itemType = 'Episode';
-            }
+        const hash = window.location.hash;
+        if (hash.includes('series')) itemType = 'Series';
+        else if (hash.includes('season')) itemType = 'Season';
+        else if (hash.includes('episode')) itemType = 'Episode';
+        else {
+            // Резервный способ через текст
+            const info = document.querySelector('.itemMiscInfo-primary')?.textContent.toLowerCase() || '';
+            if (info.includes('episode')) itemType = 'Episode';
+            else if (info.includes('season')) itemType = 'Season';
+            else if (info.includes('series')) itemType = 'Series';
         }
 
-        // Create share button matching Jellyfin's style
+        // Создание кнопки
         const shareBtn = document.createElement('button');
         shareBtn.setAttribute('is', 'emby-button');
-        shareBtn.setAttribute('type', 'button');
+        shareBtn.type = 'button';
         shareBtn.classList.add('button-flat', 'btnShare', 'detailButton', 'emby-button');
-        shareBtn.setAttribute('title', 'Share');
+        shareBtn.title = 'Share';
         shareBtn.innerHTML = `
             <div class="detailButton-content">
-                <span class="material-icons detailButton-icon share" aria-hidden="true"></span>
+                <span class="material-icons detailButton-icon share" aria-hidden="true">share</span>
             </div>
         `;
 
@@ -734,7 +732,6 @@
             showShareDialog(itemId, itemName, itemType);
         });
 
-        // Insert before the "More" button if it exists, otherwise append
         const moreBtn = btnContainer.querySelector('.btnMoreCommands');
         if (moreBtn) {
             btnContainer.insertBefore(shareBtn, moreBtn);
@@ -742,7 +739,6 @@
             btnContainer.appendChild(shareBtn);
         }
     }
-
     // Add My Shares button to user menu
     function addMySharesButton() {
         // Try to add to the header/dashboard area
