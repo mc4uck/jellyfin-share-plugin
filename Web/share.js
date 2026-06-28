@@ -679,32 +679,41 @@
     }
 
     // Add share button to item details
-  function addShareButton() {
-        // 1. Ищем контейнер
-        const btnContainer = document.querySelector('.itemDetailButtons') || 
-                            document.querySelector('.mainDetailButtons') || 
-                            document.querySelector('.detailButtons');
+    function addShareButton() {
+        const btnContainer = document.querySelector('.mainDetailButtons') ||
+                            document.querySelector('.detailButtons') ||
+                            document.querySelector('.itemDetailButtons');
+        
         if (!btnContainer) return;
-
-        // 2. Получаем ID (самый надежный способ для Jellyfin)
-        const itemDetail = document.querySelector('.itemDetail') || document.querySelector('[data-id]');
-        const itemId = itemDetail ? itemDetail.getAttribute('data-id') : getItemIdFromPage();
+    
+        const itemId = getItemIdFromPage();
         if (!itemId) return;
-
-        // 3. ПРОВЕРКА: если кнопка уже есть и у неё тот же itemId — НИЧЕГО НЕ ДЕЛАЕМ
+    
+        // ПРОВЕРКА: Если кнопка уже есть и ID совпадает, ничего не делаем
         const existingBtn = btnContainer.querySelector('.btnShare');
         if (existingBtn && existingBtn.getAttribute('data-item-id') === itemId) {
-            return; 
+            return;
         }
-
-        // Если кнопка есть, но ID другой (перешли на другой эпизод) — удаляем старую
+    
+        // Удаляем старую кнопку, если ID сменился (перешли на другой сериал/эпизод)
         if (existingBtn) existingBtn.remove();
-
-        // 4. Создаем кнопку
+    
+        const itemName = document.querySelector('.itemName')?.textContent ||
+                        document.querySelector('h1')?.textContent || 'this item';
+    
+        let itemType = 'Movie';
+        const itemTypeEl = document.querySelector('.itemMiscInfo-primary');
+        if (itemTypeEl) {
+            const text = itemTypeEl.textContent.toLowerCase();
+            if (text.includes('series') || document.querySelector('.seasons')) itemType = 'Series';
+            else if (text.includes('season')) itemType = 'Season';
+            else if (text.includes('episode')) itemType = 'Episode';
+        }
+    
         const shareBtn = document.createElement('button');
         shareBtn.setAttribute('is', 'emby-button');
         shareBtn.setAttribute('type', 'button');
-        shareBtn.setAttribute('data-item-id', itemId); // Запоминаем ID на кнопке
+        shareBtn.setAttribute('data-item-id', itemId); // ВАЖНО: закрепляем ID
         shareBtn.classList.add('button-flat', 'btnShare', 'detailButton', 'emby-button');
         shareBtn.setAttribute('title', 'Share');
         shareBtn.innerHTML = `
@@ -712,15 +721,13 @@
                 <span class="material-icons detailButton-icon share" aria-hidden="true">share</span>
             </div>
         `;
-
+    
         shareBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            const itemType = document.querySelector('.itemMiscInfo-primary')?.textContent.includes('Episode') ? 'Episode' : 'Movie';
-            showShareDialog(itemId, document.querySelector('h1')?.textContent || 'Item', itemType);
+            showShareDialog(itemId, itemName, itemType);
         });
-
-        // 5. Вставляем
+    
         const moreBtn = btnContainer.querySelector('.btnMoreCommands');
         if (moreBtn) {
             btnContainer.insertBefore(shareBtn, moreBtn);
@@ -809,24 +816,18 @@
         console.log('Jellyfin Share: Config loaded, setting up observer');
 
         // Watch for page changes
-        const observer = new MutationObserver((mutations) => {
-            if (isDetailPage()) {
-                setTimeout(addShareButton, 300);
-            }
-            // Always try to add My Shares button
-            setTimeout(addMySharesButton, 300);
+        const observer = new MutationObserver(() => {
+            addShareButton();
+            addMySharesButton();
         });
 
         observer.observe(document.body, {
-            childList: true,
-            subtree: true
+                childList: true,
+                subtree: true
         });
 
-        // Initial check
-        if (isDetailPage()) {
-            setTimeout(addShareButton, 300);
-        }
-        setTimeout(addMySharesButton, 500);
+        addShareButton();
+        addMySharesButton();
 
         console.log('Jellyfin Share: Plugin initialized successfully');
     }
