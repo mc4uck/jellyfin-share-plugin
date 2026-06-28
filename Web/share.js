@@ -779,11 +779,17 @@
         // Try URL parameter
         const urlParams = new URLSearchParams(window.location.search);
         const id = urlParams.get('id');
+        
+        console.log('DEBUG: ID найденный из URL:', id);
+        
         if (id) return id;
 
         // Try hash
         const hash = window.location.hash;
         const match = hash.match(/id=([^&]+)/);
+
+        console.log('DEBUG: ID найденный из HASH:', match ? match[1] : 'не найден');
+        
         if (match) return match[1];
 
         return null;
