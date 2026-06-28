@@ -3,6 +3,13 @@
 
     const PLUGIN_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
     let pluginConfig = null;
+    const pluginState = window.__jellyfinSharePluginState || (window.__jellyfinSharePluginState = {});
+
+    if (pluginState.scriptLoaded) {
+        console.log('Jellyfin Share: Script already loaded, skipping duplicate initialization');
+        return;
+    }
+    pluginState.scriptLoaded = true;
 
     // QR Code generator (minimal implementation)
     const QRCode = {
@@ -789,46 +796,31 @@
         return !itemType || ['Movie', 'Episode', 'Series', 'Season', 'Video'].includes(itemType);
     }
 
-    let addShareButtonRunId = 0;
-
     // Add share button to item details
-    async function addShareButton() {
-        const runId = ++addShareButtonRunId;
-
-        // Find the buttons container - try multiple selectors for different Jellyfin versions
-        const btnContainer = findButtonContainer(document);
+    function addShareButton() {
+        const activeRoot = getActiveDetailRoot();
+        const btnContainer = findButtonContainer(activeRoot) || findButtonContainer(document);
         if (!btnContainer) {
+            document.querySelectorAll('.btnShare').forEach(btn => btn.remove());
             return;
         }
 
         const detailRoot = btnContainer.closest('.detailPage, .itemDetailPage, .libraryPage, .page, main') || document;
-
-        // Get item info from page
         const itemId = getItemIdFromPage(detailRoot);
         if (!itemId) {
+            document.querySelectorAll('.btnShare').forEach(btn => btn.remove());
             return;
         }
 
         document.querySelectorAll('.btnShare').forEach(btn => {
-            const ownerContainer = btn.closest('.mainDetailButtons, .detailButtons, .itemDetailButtons, .mediaInfoButtons');
-            if (btn.dataset.itemId !== itemId || ownerContainer !== btnContainer) {
+            if (btn.parentElement !== btnContainer || btn.dataset.itemId !== itemId || btn.dataset.jfshareBound !== 'true') {
                 btn.remove();
             }
         });
 
-        if (Array.from(btnContainer.querySelectorAll('.btnShare')).some(btn => btn.dataset.itemId === itemId)) {
+        if (btnContainer.querySelector('.btnShare')) {
             return;
         }
-
-        const apiItem = await getItemInfoFromApi(itemId);
-        if (runId !== addShareButtonRunId || getItemIdFromPage(detailRoot) !== itemId) return;
-
-        const itemName = getItemNameFromPage(detailRoot, apiItem);
-        const itemType = getItemTypeFromPage(detailRoot, apiItem);
-        if (!isShareableItemType(itemType)) return;
-
-        // The API lookup is async; another observer tick may have added the button meanwhile.
-        if (Array.from(btnContainer.querySelectorAll('.btnShare')).some(btn => btn.dataset.itemId === itemId)) return;
 
         // Create share button matching Jellyfin's style
         const shareBtn = document.createElement('button');
@@ -837,16 +829,34 @@
         shareBtn.classList.add('button-flat', 'btnShare', 'detailButton', 'emby-button');
         shareBtn.setAttribute('title', 'Share');
         shareBtn.dataset.itemId = itemId;
+        shareBtn.dataset.jfshareBound = 'true';
         shareBtn.innerHTML = `
             <div class="detailButton-content">
                 <span class="material-icons detailButton-icon share" aria-hidden="true"></span>
             </div>
         `;
 
-        shareBtn.addEventListener('click', (e) => {
+        shareBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
-            showShareDialog(itemId, itemName, itemType);
+
+            const currentRoot = btnContainer.closest('.detailPage, .itemDetailPage, .libraryPage, .page, main') || document;
+            const currentItemId = getItemIdFromPage(currentRoot);
+            if (!currentItemId) {
+                console.warn('Jellyfin Share: Could not determine current item id');
+                return;
+            }
+
+            const apiItem = await getItemInfoFromApi(currentItemId);
+            const itemName = getItemNameFromPage(currentRoot, apiItem);
+            const itemType = getItemTypeFromPage(currentRoot, apiItem);
+            if (!isShareableItemType(itemType)) {
+                console.warn('Jellyfin Share: Unsupported item type', itemType);
+                return;
+            }
+
+            shareBtn.dataset.itemId = currentItemId;
+            showShareDialog(currentItemId, itemName, itemType);
         });
 
         // Insert before the "More" button if it exists, otherwise append
@@ -895,15 +905,20 @@
 
     // Extract item ID from current page
     function getItemIdFromPage(root = document) {
-        // Try URL parameter
-        const urlParams = new URLSearchParams(window.location.search);
-        const id = urlParams.get('id') || urlParams.get('itemId');
-        if (id) return decodeURIComponent(id);
-
-        // Try hash
         const hash = window.location.hash;
-        const match = hash.match(/(?:id|itemId)=([^&]+)/i);
-        if (match) return decodeURIComponent(match[1]);
+
+        // Try URL and hash query parameters first. These are the most reliable in Jellyfin.
+        const queryStrings = [
+            window.location.search,
+            hash.includes('?') ? hash.substring(hash.indexOf('?')) : '',
+            hash.includes('&') ? hash.substring(hash.indexOf('&')) : ''
+        ].filter(Boolean);
+
+        for (const queryString of queryStrings) {
+            const params = new URLSearchParams(queryString.replace(/^#/, '').replace(/^\?/, ''));
+            const id = params.get('itemId') || params.get('id');
+            if (id) return decodeURIComponent(id);
+        }
 
         const routeText = `${window.location.pathname}${hash}`;
         const guidMatch = routeText.match(/(?:details|item|items)[/?#&=/:]+([0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
