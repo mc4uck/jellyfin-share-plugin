@@ -680,22 +680,20 @@
 
     // Add share button to item details
     function addShareButton() {
-        // Get item info from page
-        const itemId = getItemIdFromPage();
-        if (!itemId) {
+        // Check if button already exists
+        if (document.querySelector('.btnShare')) return;
+
+        // Find the buttons container - try multiple selectors for different Jellyfin versions
+        const btnContainer = document.querySelector('.mainDetailButtons') ||
+                            document.querySelector('.detailButtons') ||
+                            document.querySelector('.itemDetailButtons');
+        if (!btnContainer) {
             return;
         }
 
-        // Check if button already exists for the current item
-        const existingBtn = document.querySelector('.btnShare');
-        if (existingBtn) {
-            if (existingBtn.dataset.itemId === itemId) return;
-            existingBtn.remove();
-        }
-
-        // Find the buttons container - try multiple selectors for different Jellyfin versions
-        const btnContainer = findDetailButtonContainer();
-        if (!btnContainer) {
+        // Get item info from page
+        const itemId = getItemIdFromPage();
+        if (!itemId) {
             return;
         }
 
@@ -724,7 +722,6 @@
         shareBtn.setAttribute('type', 'button');
         shareBtn.classList.add('button-flat', 'btnShare', 'detailButton', 'emby-button');
         shareBtn.setAttribute('title', 'Share');
-        shareBtn.dataset.itemId = itemId;
         shareBtn.innerHTML = `
             <div class="detailButton-content">
                 <span class="material-icons detailButton-icon share" aria-hidden="true"></span>
@@ -744,31 +741,6 @@
         } else {
             btnContainer.appendChild(shareBtn);
         }
-    }
-
-    function isVisible(element) {
-        if (!element) return false;
-        const rect = element.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0;
-    }
-
-    function findDetailButtonContainer() {
-        const selectors = [
-            '.mainDetailButtons',
-            '.detailButtons',
-            '.itemDetailButtons',
-            '.detailPagePrimaryContainer .buttons',
-            '.detailPagePrimaryContainer .mainDetailButtons',
-            '.itemDetailPage .buttons',
-            '.mediaInfoButtons'
-        ];
-
-        for (const selector of selectors) {
-            const container = Array.from(document.querySelectorAll(selector)).find(isVisible);
-            if (container) return container;
-        }
-
-        return null;
     }
 
     // Add My Shares button to user menu
@@ -810,20 +782,13 @@
     function getItemIdFromPage() {
         // Try URL parameter
         const urlParams = new URLSearchParams(window.location.search);
-        const id = urlParams.get('id') || urlParams.get('itemId');
+        const id = urlParams.get('id');
         if (id) return id;
 
         // Try hash
         const hash = window.location.hash;
-        const queryIndex = hash.indexOf('?');
-        if (queryIndex !== -1) {
-            const hashParams = new URLSearchParams(hash.substring(queryIndex + 1));
-            const hashId = hashParams.get('id') || hashParams.get('itemId');
-            if (hashId) return hashId;
-        }
-
-        const match = hash.match(/(?:id|itemId)=([^&]+)/i);
-        if (match) return decodeURIComponent(match[1]);
+        const match = hash.match(/id=([^&]+)/);
+        if (match) return match[1];
 
         return null;
     }
@@ -835,10 +800,9 @@
         return hash.includes('item?') ||
                hash.includes('details?') ||
                hash.includes('id=') ||
-               hash.toLowerCase().includes('itemid=') ||
                path.includes('/details') ||
                path.includes('/item') ||
-               findDetailButtonContainer() !== null;
+               document.querySelector('.mainDetailButtons') !== null;
     }
 
     // Initialize
