@@ -789,15 +789,19 @@
         return !itemType || ['Movie', 'Episode', 'Series', 'Season', 'Video'].includes(itemType);
     }
 
+    let addShareButtonRunId = 0;
+
     // Add share button to item details
     async function addShareButton() {
-        const detailRoot = getActiveDetailRoot();
+        const runId = ++addShareButtonRunId;
 
         // Find the buttons container - try multiple selectors for different Jellyfin versions
-        const btnContainer = findButtonContainer(detailRoot);
+        const btnContainer = findButtonContainer(document);
         if (!btnContainer) {
             return;
         }
+
+        const detailRoot = btnContainer.closest('.detailPage, .itemDetailPage, .libraryPage, .page, main') || document;
 
         // Get item info from page
         const itemId = getItemIdFromPage(detailRoot);
@@ -805,13 +809,20 @@
             return;
         }
 
-        const existingShareButton = btnContainer.querySelector('.btnShare') || detailRoot.querySelector('.btnShare');
-        if (existingShareButton) {
-            if (existingShareButton.dataset.itemId === itemId) return;
-            existingShareButton.remove();
+        document.querySelectorAll('.btnShare').forEach(btn => {
+            const ownerContainer = btn.closest('.mainDetailButtons, .detailButtons, .itemDetailButtons, .mediaInfoButtons');
+            if (btn.dataset.itemId !== itemId || ownerContainer !== btnContainer) {
+                btn.remove();
+            }
+        });
+
+        if (Array.from(btnContainer.querySelectorAll('.btnShare')).some(btn => btn.dataset.itemId === itemId)) {
+            return;
         }
 
         const apiItem = await getItemInfoFromApi(itemId);
+        if (runId !== addShareButtonRunId || getItemIdFromPage(detailRoot) !== itemId) return;
+
         const itemName = getItemNameFromPage(detailRoot, apiItem);
         const itemType = getItemTypeFromPage(detailRoot, apiItem);
         if (!isShareableItemType(itemType)) return;
@@ -894,14 +905,15 @@
         const match = hash.match(/(?:id|itemId)=([^&]+)/i);
         if (match) return decodeURIComponent(match[1]);
 
-        const guidMatch = `${window.location.pathname}${hash}`.match(/[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-        if (guidMatch) return guidMatch[0].replace(/-/g, '');
+        const routeText = `${window.location.pathname}${hash}`;
+        const guidMatch = routeText.match(/(?:details|item|items)[/?#&=/:]+([0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+        if (guidMatch) return guidMatch[1].replace(/-/g, '');
 
-        const itemElement = root.querySelector('[data-itemid], [data-item-id], [data-id]') ||
-                            document.querySelector('.detailPage [data-itemid], .detailPage [data-item-id], .detailPage [data-id]');
-        const domId = itemElement?.dataset?.itemid ||
-                      itemElement?.dataset?.itemId ||
-                      itemElement?.dataset?.id;
+        const rootId = root.dataset?.itemid || root.dataset?.itemId;
+        if (rootId) return rootId;
+
+        const itemElement = root.querySelector('.detailPagePrimaryContainer [data-itemid], .detailPagePrimaryContainer [data-item-id], .itemName[data-itemid], .itemName[data-item-id]');
+        const domId = itemElement?.dataset?.itemid || itemElement?.dataset?.itemId;
         if (domId) return domId;
 
         return null;
