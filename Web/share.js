@@ -680,28 +680,31 @@
 
     // Add share button to item details
   function addShareButton() {
-        // 1. Сначала ищем уже существующие кнопки и удаляем их ВСЕ
-        const existingButtons = document.querySelectorAll('.btnShare');
-        existingButtons.forEach(btn => btn.remove());
-
-        // 2. Ищем контейнер
+        // 1. Ищем контейнер
         const btnContainer = document.querySelector('.itemDetailButtons') || 
                             document.querySelector('.mainDetailButtons') || 
                             document.querySelector('.detailButtons');
-        
         if (!btnContainer) return;
 
-        // 3. Получаем ID (используем атрибут, так как он надежнее URL)
+        // 2. Получаем ID (самый надежный способ для Jellyfin)
         const itemDetail = document.querySelector('.itemDetail') || document.querySelector('[data-id]');
         const itemId = itemDetail ? itemDetail.getAttribute('data-id') : getItemIdFromPage();
-        
         if (!itemId) return;
+
+        // 3. ПРОВЕРКА: если кнопка уже есть и у неё тот же itemId — НИЧЕГО НЕ ДЕЛАЕМ
+        const existingBtn = btnContainer.querySelector('.btnShare');
+        if (existingBtn && existingBtn.getAttribute('data-item-id') === itemId) {
+            return; 
+        }
+
+        // Если кнопка есть, но ID другой (перешли на другой эпизод) — удаляем старую
+        if (existingBtn) existingBtn.remove();
 
         // 4. Создаем кнопку
         const shareBtn = document.createElement('button');
         shareBtn.setAttribute('is', 'emby-button');
         shareBtn.setAttribute('type', 'button');
-        // Добавляем класс, чтобы найти её в будущем
+        shareBtn.setAttribute('data-item-id', itemId); // Запоминаем ID на кнопке
         shareBtn.classList.add('button-flat', 'btnShare', 'detailButton', 'emby-button');
         shareBtn.setAttribute('title', 'Share');
         shareBtn.innerHTML = `
@@ -713,7 +716,6 @@
         shareBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            // Получаем тип из текущего элемента или заголовка
             const itemType = document.querySelector('.itemMiscInfo-primary')?.textContent.includes('Episode') ? 'Episode' : 'Movie';
             showShareDialog(itemId, document.querySelector('h1')?.textContent || 'Item', itemType);
         });
