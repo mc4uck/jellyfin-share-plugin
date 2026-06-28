@@ -117,7 +117,7 @@ jobs:
           NEW_VERSION='{
             "version": "${{ steps.version.outputs.VERSION }}",
             "changelog": "See https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.VERSION }}",
-            "targetAbi": "10.10.0.0",
+            "targetAbi": "10.11.11.0",
             "sourceUrl": "https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.VERSION }}/jellyfin-plugin-share-${{ steps.version.outputs.VERSION }}.zip",
             "checksum": "${{ steps.checksum.outputs.CHECKSUM }}",
             "timestamp": "${{ steps.checksum.outputs.TIMESTAMP }}"
@@ -135,7 +135,7 @@ jobs:
               "name": "Jellyfin Share",
               "overview": "Create temporary, shareable links for media items",
               "description": "A plugin that adds a Share button to movie and episode detail pages, allowing you to create temporary, password-protected shareable links for your media content.",
-              "owner": "monxas",
+              "owner": "mc4uck",
               "category": "General",
               "versions": [$NEW_VERSION]
             }
