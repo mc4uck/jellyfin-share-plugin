@@ -695,17 +695,22 @@
             return;
         }
 
+        const detailRoot = btnContainer.closest('.detailPage, .itemDetailPage, .libraryPage, .page') || document;
+
         // Get item name and type
-        const itemName = document.querySelector('.itemName')?.textContent ||
-                        document.querySelector('h1')?.textContent ||
+        const itemName = detailRoot.querySelector('.itemName')?.textContent ||
+                        detailRoot.querySelector('h1')?.textContent ||
+                        document.querySelector('.detailPage:not(.hide) .itemName')?.textContent ||
+                        document.querySelector('.detailPage:not(.hide) h1')?.textContent ||
                         'this item';
 
         // Try to determine item type from the page
         let itemType = 'Movie';
-        const itemTypeEl = document.querySelector('.itemMiscInfo-primary');
+        const itemTypeEl = detailRoot.querySelector('.itemMiscInfo-primary') ||
+                           document.querySelector('.detailPage:not(.hide) .itemMiscInfo-primary');
         if (itemTypeEl) {
             const text = itemTypeEl.textContent.toLowerCase();
-            if (text.includes('series') || document.querySelector('.seasons')) {
+            if (text.includes('series') || detailRoot.querySelector('.seasons')) {
                 itemType = 'Series';
             } else if (text.includes('season')) {
                 itemType = 'Season';
