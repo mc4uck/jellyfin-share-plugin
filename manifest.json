@@ -8,6 +8,14 @@
     "category": "General",
     "versions": [
       {
+        "version": "1.0.16",
+        "changelog": "See https://github.com/mc4uck/jellyfin-share-plugin/releases/tag/v1.0.16",
+        "targetAbi": "10.11.11.0",
+        "sourceUrl": "https://github.com/mc4uck/jellyfin-share-plugin/releases/download/v1.0.16/jellyfin-plugin-share-1.0.16.zip",
+        "checksum": "af1b11bde2f6f7133b5648819af55e71",
+        "timestamp": "2026-06-28T19:17:11Z"
+      },
+      {
         "version": "1.0.15",
         "changelog": "See https://github.com/mc4uck/jellyfin-share-plugin/releases/tag/v1.0.15",
         "targetAbi": "10.11.11.0",
