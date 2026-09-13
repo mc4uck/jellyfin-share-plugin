@@ -791,96 +791,116 @@
     //     }
     // }
 
-    
-    // Add My Shares button to user menu
+
+    // Add My Shares button to Jellyfin header
     function addMySharesButton() {
 
-        // ---------------------------------------------------------
-        // Jellyfin 12 / Auto / Modern UI
-        // ---------------------------------------------------------
-        const modernToolbars = Array.from(
-            document.querySelectorAll('.MuiToolbar-root')
-        ).filter(isVisible);
+        // =========================================================
+        // Jellyfin 12 - Auto / Modern interface
+        // =========================================================
 
-        for (const toolbar of modernToolbars) {
+        // Find the visible Search button.
+        // In Jellyfin 12 the Search button is inside the same
+        // container as Group Watch and Cast.
+        const searchButton = Array.from(
+            document.querySelectorAll(
+                'a[aria-label="Поиск"], ' +
+                'button[aria-label="Поиск"], ' +
+                'a[aria-label="Search"], ' +
+                'button[aria-label="Search"]'
+            )
+        ).find(isVisible);
 
-            const actionBox = Array.from(toolbar.children).find(el => {
-                const style = window.getComputedStyle(el);
+        if (searchButton && searchButton.parentElement) {
 
-                return style.display === 'flex' &&
-                    style.justifyContent === 'flex-end' &&
-                    parseFloat(style.flexGrow || '0') > 0;
-            });
+            const actionBox = searchButton.parentElement;
 
-            if (actionBox) {
-
-                if (actionBox.querySelector('.btnMyShares')) {
-                    return;
-                }
-
-                document.querySelectorAll('.btnMyShares').forEach(btn => {
-                    btn.remove();
-                });
-
-                const mySharesBtn = document.createElement('button');
-
-                mySharesBtn.type = 'button';
-                mySharesBtn.className = 'btnMyShares';
-                mySharesBtn.title = 'My Shares';
-                mySharesBtn.setAttribute('aria-label', 'My Shares');
-
-                mySharesBtn.innerHTML =
-                    '<span class="material-icons">folder_shared</span>';
-
-                mySharesBtn.style.cssText = `
-                    width: 40px;
-                    height: 40px;
-                    padding: 8px;
-                    margin: 0;
-                    border: 0;
-                    border-radius: 50%;
-                    background: transparent;
-                    color: inherit;
-                    cursor: pointer;
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    flex: 0 0 auto;
-                `;
-
-                const icon = mySharesBtn.querySelector('.material-icons');
-
-                if (icon) {
-                    icon.style.fontSize = '24px';
-                }
-
-                mySharesBtn.addEventListener('mouseenter', () => {
-                    mySharesBtn.style.background =
-                        'rgba(255,255,255,0.08)';
-                });
-
-                mySharesBtn.addEventListener('mouseleave', () => {
-                    mySharesBtn.style.background = 'transparent';
-                });
-
-                mySharesBtn.addEventListener('click', e => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    showMySharesDialog();
-                });
-
-                actionBox.appendChild(mySharesBtn);
-
+            // Already installed in the active Modern header
+            if (actionBox.querySelector('.btnMyShares')) {
                 return;
             }
+
+            // Remove an instance left in another/hidden header
+            document.querySelectorAll('.btnMyShares').forEach(btn => {
+                btn.remove();
+            });
+
+            const mySharesBtn = document.createElement('button');
+
+            mySharesBtn.type = 'button';
+            mySharesBtn.className = 'btnMyShares';
+
+            mySharesBtn.title = 'My Shares';
+            mySharesBtn.setAttribute('aria-label', 'My Shares');
+
+            mySharesBtn.innerHTML =
+                '<span class="material-icons" aria-hidden="true">' +
+                'folder_shared' +
+                '</span>';
+
+            // Match Jellyfin 12 toolbar buttons
+            mySharesBtn.style.cssText = `
+                width: 40px;
+                height: 40px;
+                min-width: 40px;
+                padding: 8px;
+                margin: 0;
+                border: 0;
+                border-radius: 50%;
+                background: transparent;
+                color: inherit;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                box-sizing: border-box;
+                flex: 0 0 auto;
+            `;
+
+            const icon = mySharesBtn.querySelector('.material-icons');
+
+            if (icon) {
+                icon.style.cssText = `
+                    font-size: 24px;
+                    line-height: 24px;
+                    width: 24px;
+                    height: 24px;
+                `;
+            }
+
+            mySharesBtn.addEventListener('mouseenter', () => {
+                mySharesBtn.style.background =
+                    'rgba(255,255,255,0.08)';
+            });
+
+            mySharesBtn.addEventListener('mouseleave', () => {
+                mySharesBtn.style.background =
+                    'transparent';
+            });
+
+            mySharesBtn.addEventListener('click', e => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                showMySharesDialog();
+            });
+
+            // Search is the last normal action button.
+            // Appending here places My Shares before the user avatar.
+            actionBox.appendChild(mySharesBtn);
+
+            return;
         }
 
 
-        // ---------------------------------------------------------
-        // Legacy / Computer UI
-        // ---------------------------------------------------------
+        // =========================================================
+        // Jellyfin Legacy / "Computer" interface
+        // =========================================================
+
         const legacyContainers = Array.from(
-            document.querySelectorAll('.headerRight, .headerButtons')
+            document.querySelectorAll(
+                '.headerRight, .headerButtons'
+            )
         ).filter(isVisible);
 
         for (const headerRight of legacyContainers) {
@@ -893,7 +913,8 @@
                 btn.remove();
             });
 
-            const mySharesBtn = document.createElement('button');
+            const mySharesBtn =
+                document.createElement('button');
 
             mySharesBtn.setAttribute(
                 'is',
@@ -916,7 +937,9 @@
             );
 
             mySharesBtn.innerHTML =
-                '<span class="material-icons">folder_shared</span>';
+                '<span class="material-icons">' +
+                'folder_shared' +
+                '</span>';
 
             mySharesBtn.style.cssText =
                 'color:#fff;opacity:0.8;';
@@ -924,11 +947,14 @@
             mySharesBtn.addEventListener('click', e => {
                 e.preventDefault();
                 e.stopPropagation();
+
                 showMySharesDialog();
             });
 
             const userBtn =
-                headerRight.querySelector('.headerUserButton');
+                headerRight.querySelector(
+                    '.headerUserButton'
+                );
 
             if (userBtn) {
                 headerRight.insertBefore(
@@ -944,6 +970,7 @@
             return;
         }
     }
+
     
 
     // Extract item ID from current page
