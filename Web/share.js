@@ -757,37 +757,191 @@
     }
 
     // Add My Shares button to user menu
+    // function addMySharesButton() {
+    //     // Try to add to the header/dashboard area
+    //     // This button should be accessible from anywhere
+    //     if (document.querySelector('.btnMyShares')) return;
+
+    //     // Try to find the user menu or header buttons
+    //     const headerRight = document.querySelector('.headerRight') ||
+    //                        document.querySelector('.headerButtons');
+
+    //     if (headerRight && !headerRight.querySelector('.btnMyShares')) {
+    //         const mySharesBtn = document.createElement('button');
+    //         mySharesBtn.setAttribute('is', 'paper-icon-button-light');
+    //         mySharesBtn.classList.add('btnMyShares', 'paper-icon-button-light');
+    //         mySharesBtn.setAttribute('title', 'My Shares');
+    //         mySharesBtn.innerHTML = '<span class="material-icons">folder_shared</span>';
+    //         mySharesBtn.style.cssText = 'color: #fff; opacity: 0.8;';
+
+    //         mySharesBtn.addEventListener('click', (e) => {
+    //             e.preventDefault();
+    //             e.stopPropagation();
+    //             showMySharesDialog();
+    //         });
+
+    //         // Insert before the user button
+    //         const userBtn = headerRight.querySelector('.headerUserButton') ||
+    //                        headerRight.querySelector('.headerButton');
+    //         if (userBtn) {
+    //             headerRight.insertBefore(mySharesBtn, userBtn);
+    //         } else {
+    //             headerRight.appendChild(mySharesBtn);
+    //         }
+    //     }
+    // }
+
+    // Find the currently visible header and the position for My Shares.
+    // Jellyfin 12 can keep more than one header implementation in the DOM,
+    // so using querySelector() alone may select a hidden header.
+    function findVisibleHeaderTarget() {
+        // Legacy/Desktop header.
+        const legacyContainers = Array.from(
+            document.querySelectorAll('.headerRight, .headerButtons')
+        ).filter(isVisible);
+
+        for (const container of legacyContainers) {
+            const userBtn = Array.from(
+                container.querySelectorAll('.headerUserButton, .headerButton')
+            ).find(isVisible) || null;
+
+            return { container, before: userBtn };
+        }
+
+        // Jellyfin 12 Modern/Auto header (MUI toolbar).
+        const toolbars = Array.from(
+            document.querySelectorAll('.MuiToolbar-root')
+        ).filter(isVisible);
+
+        for (const toolbar of toolbars) {
+            const buttons = Array.from(
+                toolbar.querySelectorAll('button')
+            ).filter(isVisible);
+
+            const userBtn = buttons.find(btn =>
+                btn.querySelector('.MuiAvatar-root') ||
+                (
+                    btn.hasAttribute('aria-haspopup') &&
+                    btn.hasAttribute('aria-controls')
+                )
+            );
+
+            if (userBtn) {
+                const userBox = userBtn.parentElement;
+
+                if (userBox && userBox.parentElement === toolbar) {
+                    return {
+                        container: toolbar,
+                        before: userBox
+                    };
+                }
+
+                return {
+                    container: toolbar,
+                    before: userBtn
+                };
+            }
+        }
+
+        return null;
+    }
+
+
+    // Add My Shares button to the currently visible Jellyfin header.
     function addMySharesButton() {
-        // Try to add to the header/dashboard area
-        // This button should be accessible from anywhere
-        if (document.querySelector('.btnMyShares')) return;
+        const target = findVisibleHeaderTarget();
 
-        // Try to find the user menu or header buttons
-        const headerRight = document.querySelector('.headerRight') ||
-                           document.querySelector('.headerButtons');
+        if (!target) {
+            return;
+        }
 
-        if (headerRight && !headerRight.querySelector('.btnMyShares')) {
-            const mySharesBtn = document.createElement('button');
-            mySharesBtn.setAttribute('is', 'paper-icon-button-light');
-            mySharesBtn.classList.add('btnMyShares', 'paper-icon-button-light');
+        let mySharesBtn = document.querySelector('.btnMyShares');
+
+        // Jellyfin can keep the old header hidden in DOM.
+        // If our button is inside the hidden header, recreate it in the visible one.
+        if (
+            mySharesBtn &&
+            mySharesBtn.parentElement !== target.container
+        ) {
+            mySharesBtn.remove();
+            mySharesBtn = null;
+        }
+
+        if (!mySharesBtn) {
+            mySharesBtn = document.createElement('button');
+
+            mySharesBtn.setAttribute('type', 'button');
             mySharesBtn.setAttribute('title', 'My Shares');
-            mySharesBtn.innerHTML = '<span class="material-icons">folder_shared</span>';
-            mySharesBtn.style.cssText = 'color: #fff; opacity: 0.8;';
+            mySharesBtn.setAttribute('aria-label', 'My Shares');
+
+            mySharesBtn.classList.add(
+                'btnMyShares',
+                'paper-icon-button-light'
+            );
+
+            mySharesBtn.innerHTML =
+                '<span class="material-icons" aria-hidden="true">folder_shared</span>';
+
+            // Works in both Legacy and Jellyfin 12 Modern header.
+            mySharesBtn.style.cssText = [
+                'display:inline-flex',
+                'align-items:center',
+                'justify-content:center',
+                'width:48px',
+                'height:48px',
+                'padding:12px',
+                'margin:0',
+                'border:0',
+                'border-radius:50%',
+                'background:transparent',
+                'color:inherit',
+                'opacity:0.9',
+                'cursor:pointer',
+                'box-sizing:border-box',
+                'flex:0 0 auto'
+            ].join(';');
+
+            const icon = mySharesBtn.querySelector('.material-icons');
+
+            if (icon) {
+                icon.style.cssText =
+                    'font-size:24px;' +
+                    'line-height:24px;' +
+                    'width:24px;' +
+                    'height:24px;';
+            }
+
+            mySharesBtn.addEventListener('mouseenter', () => {
+                mySharesBtn.style.background =
+                    'rgba(255,255,255,0.08)';
+                mySharesBtn.style.opacity = '1';
+            });
+
+            mySharesBtn.addEventListener('mouseleave', () => {
+                mySharesBtn.style.background = 'transparent';
+                mySharesBtn.style.opacity = '0.9';
+            });
 
             mySharesBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+
                 showMySharesDialog();
             });
+        }
 
-            // Insert before the user button
-            const userBtn = headerRight.querySelector('.headerUserButton') ||
-                           headerRight.querySelector('.headerButton');
-            if (userBtn) {
-                headerRight.insertBefore(mySharesBtn, userBtn);
-            } else {
-                headerRight.appendChild(mySharesBtn);
-            }
+        if (
+            target.before &&
+            target.before.parentElement === target.container
+        ) {
+            target.container.insertBefore(
+                mySharesBtn,
+                target.before
+            );
+        } else if (
+            mySharesBtn.parentElement !== target.container
+        ) {
+            target.container.appendChild(mySharesBtn);
         }
     }
 
