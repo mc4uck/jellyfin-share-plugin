@@ -1,4 +1,4 @@
-(function() {
+(function () {
     'use strict';
 
     const PLUGIN_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
@@ -6,7 +6,7 @@
 
     // QR Code generator (minimal implementation)
     const QRCode = {
-        generate: function(text, size) {
+        generate: function (text, size) {
             // Use a simple QR code API for now - could be replaced with pure JS library
             const encoded = encodeURIComponent(text);
             return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encoded}&bgcolor=202020&color=ffffff`;
@@ -439,8 +439,8 @@
                             <h4 class="jfshare-list-title">${escapeHtml(share.Title)}</h4>
                             <div>
                                 ${share.IsRevoked ? '<span class="jfshare-badge jfshare-badge-revoked">Revoked</span>' :
-                                  share.IsExpired ? '<span class="jfshare-badge jfshare-badge-expired">Expired</span>' :
-                                  '<span class="jfshare-badge jfshare-badge-active">Active</span>'}
+                    share.IsExpired ? '<span class="jfshare-badge jfshare-badge-expired">Expired</span>' :
+                        '<span class="jfshare-badge jfshare-badge-active">Active</span>'}
                                 ${share.HasPassword ? '<span class="jfshare-badge jfshare-badge-password">Password</span>' : ''}
                             </div>
                         </div>
@@ -658,10 +658,10 @@
                     <h4 style="margin: 0 0 0.75em 0; color: #aaa; font-size: 0.9em;">Views by Day (Last 30 Days)</h4>
                     <div style="display: flex; align-items: flex-end; gap: 4px; height: 100px; padding: 0.5em; background: #2a2a2a; border-radius: 8px;">
                         ${viewsByDay.slice(0, 14).reverse().map((day, i) => {
-                            const maxViews = Math.max(...viewsByDay.map(d => d.Views || d.views || 0), 1);
-                            const height = ((day.Views || day.views || 0) / maxViews) * 100;
-                            return `<div style="flex: 1; background: #00a4dc; height: ${Math.max(height, 4)}%; border-radius: 2px;" title="${day.Date || day.date}: ${day.Views || day.views} views"></div>`;
-                        }).join('')}
+                const maxViews = Math.max(...viewsByDay.map(d => d.Views || d.views || 0), 1);
+                const height = ((day.Views || day.views || 0) / maxViews) * 100;
+                return `<div style="flex: 1; background: #00a4dc; height: ${Math.max(height, 4)}%; border-radius: 2px;" title="${day.Date || day.date}: ${day.Views || day.views} views"></div>`;
+            }).join('')}
                     </div>
                 </div>
                 ` : '<p style="color: #888; text-align: center; margin-top: 1em;">No view data yet</p>'}
@@ -699,15 +699,15 @@
 
         // Get item name and type
         const itemName = detailRoot.querySelector('.itemName')?.textContent ||
-                        detailRoot.querySelector('h1')?.textContent ||
-                        document.querySelector('.detailPage:not(.hide) .itemName')?.textContent ||
-                        document.querySelector('.detailPage:not(.hide) h1')?.textContent ||
-                        'this item';
+            detailRoot.querySelector('h1')?.textContent ||
+            document.querySelector('.detailPage:not(.hide) .itemName')?.textContent ||
+            document.querySelector('.detailPage:not(.hide) h1')?.textContent ||
+            'this item';
 
         // Try to determine item type from the page
         let itemType = 'Movie';
         const itemTypeEl = detailRoot.querySelector('.itemMiscInfo-primary') ||
-                           document.querySelector('.detailPage:not(.hide) .itemMiscInfo-primary');
+            document.querySelector('.detailPage:not(.hide) .itemMiscInfo-primary');
         if (itemTypeEl) {
             const text = itemTypeEl.textContent.toLowerCase();
             if (text.includes('series') || detailRoot.querySelector('.seasons')) {
@@ -756,42 +756,6 @@
         return containers.find(isVisible) || null;
     }
 
-    // Add My Shares button to user menu
-    // function addMySharesButton() {
-    //     // Try to add to the header/dashboard area
-    //     // This button should be accessible from anywhere
-    //     if (document.querySelector('.btnMyShares')) return;
-
-    //     // Try to find the user menu or header buttons
-    //     const headerRight = document.querySelector('.headerRight') ||
-    //                        document.querySelector('.headerButtons');
-
-    //     if (headerRight && !headerRight.querySelector('.btnMyShares')) {
-    //         const mySharesBtn = document.createElement('button');
-    //         mySharesBtn.setAttribute('is', 'paper-icon-button-light');
-    //         mySharesBtn.classList.add('btnMyShares', 'paper-icon-button-light');
-    //         mySharesBtn.setAttribute('title', 'My Shares');
-    //         mySharesBtn.innerHTML = '<span class="material-icons">folder_shared</span>';
-    //         mySharesBtn.style.cssText = 'color: #fff; opacity: 0.8;';
-
-    //         mySharesBtn.addEventListener('click', (e) => {
-    //             e.preventDefault();
-    //             e.stopPropagation();
-    //             showMySharesDialog();
-    //         });
-
-    //         // Insert before the user button
-    //         const userBtn = headerRight.querySelector('.headerUserButton') ||
-    //                        headerRight.querySelector('.headerButton');
-    //         if (userBtn) {
-    //             headerRight.insertBefore(mySharesBtn, userBtn);
-    //         } else {
-    //             headerRight.appendChild(mySharesBtn);
-    //         }
-    //     }
-    // }
-
-
     // Add My Shares button to Jellyfin header
     function addMySharesButton() {
 
@@ -825,64 +789,39 @@
                 btn.remove();
             });
 
-            const mySharesBtn = document.createElement('button');
+            // Clone Jellyfin's native Search button so My Shares
+            // gets exactly the same size, spacing, hover and MUI styling.
+            const mySharesBtn = searchButton.cloneNode(false);
 
-            mySharesBtn.type = 'button';
-            mySharesBtn.className = 'btnMyShares';
+            // Remove Search-specific navigation/attributes
+            mySharesBtn.removeAttribute('href');
+            mySharesBtn.removeAttribute('id');
+            mySharesBtn.removeAttribute('aria-current');
 
-            mySharesBtn.title = 'My Shares';
+            mySharesBtn.classList.add('btnMyShares');
+
+            mySharesBtn.setAttribute('title', 'My Shares');
             mySharesBtn.setAttribute('aria-label', 'My Shares');
+            mySharesBtn.setAttribute('role', 'button');
+            mySharesBtn.setAttribute('tabindex', '0');
 
+            // Replace Search icon with Share-folder icon
             mySharesBtn.innerHTML =
-                '<span class="material-icons" aria-hidden="true">' +
-                'folder_shared' +
-                '</span>';
-
-            // Match Jellyfin 12 toolbar buttons
-            mySharesBtn.style.cssText = `
-                width: 40px;
-                height: 40px;
-                min-width: 40px;
-                padding: 8px;
-                margin: 0;
-                border: 0;
-                border-radius: 50%;
-                background: transparent;
-                color: inherit;
-                cursor: pointer;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                box-sizing: border-box;
-                flex: 0 0 auto;
-            `;
-
-            const icon = mySharesBtn.querySelector('.material-icons');
-
-            if (icon) {
-                icon.style.cssText = `
-                    font-size: 24px;
-                    line-height: 24px;
-                    width: 24px;
-                    height: 24px;
-                `;
-            }
-
-            mySharesBtn.addEventListener('mouseenter', () => {
-                mySharesBtn.style.background =
-                    'rgba(255,255,255,0.08)';
-            });
-
-            mySharesBtn.addEventListener('mouseleave', () => {
-                mySharesBtn.style.background =
-                    'transparent';
-            });
+                '<span class="material-icons" aria-hidden="true" ' +
+                'style="font-size:24px;line-height:1;">folder_shared</span>';
 
             mySharesBtn.addEventListener('click', e => {
                 e.preventDefault();
                 e.stopPropagation();
 
                 showMySharesDialog();
+            });
+
+            mySharesBtn.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    showMySharesDialog();
+                }
             });
 
             // Search is the last normal action button.
@@ -971,7 +910,7 @@
         }
     }
 
-    
+
 
     // Extract item ID from current page
     function getItemIdFromPage() {
@@ -993,11 +932,11 @@
         const hash = window.location.hash || '';
         const path = window.location.pathname || '';
         return hash.includes('item?') ||
-               hash.includes('details?') ||
-               hash.includes('id=') ||
-               path.includes('/details') ||
-               path.includes('/item') ||
-               findVisibleDetailButtonContainer() !== null;
+            hash.includes('details?') ||
+            hash.includes('id=') ||
+            path.includes('/details') ||
+            path.includes('/item') ||
+            findVisibleDetailButtonContainer() !== null;
     }
 
     // Initialize
